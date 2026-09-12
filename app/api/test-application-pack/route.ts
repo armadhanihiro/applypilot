@@ -9,6 +9,7 @@ import { normalizeJobSource, agenticStructuredDataToJob } from "@/lib/agents/sou
 import { buildApplicationPackContext } from "@/lib/agents/application-pack";
 import { generateApplicationPackCore } from "@/lib/agents/application-pack-generator";
 import { verifyApplicationPackClaims } from "@/lib/agents/application-pack-claim-verifier";
+import { generateApplicationMaterials } from "@/lib/agents/application-materials-generator";
 
 export async function POST(request: NextRequest) {
     try {
@@ -68,6 +69,15 @@ export async function POST(request: NextRequest) {
         // SEMANTIC CLAIM VERIFICATION
         const applicationPack = await verifyApplicationPackClaims(applicationPackCore);
 
+        // ACT: GENERATE GROUNDED APPLICATION MATERIALS
+        const applicationMaterials = await generateApplicationMaterials(
+            applicationPack,
+            {
+                title: job.title,
+                company: job.company,
+            }
+        );
+
         const claimMetrics = applicationPack.sellingPoints.flatMap((point) => point.claims).reduce(
             (acc, claim) => {
                 acc.total += 1;
@@ -109,6 +119,7 @@ export async function POST(request: NextRequest) {
                 claimMetrics,
             },
             applicationPack,
+            applicationMaterials,
         });
     } catch (error) {
         console.error("[ApplyPilot] Application Pack error:", error);

@@ -83,7 +83,54 @@ interface AnalyzeResponse {
     gaps: ApplicationGap[];
   };
 
+  applicationMaterials: ApplicationMaterialsResponse;
   error?: string;
+}
+
+interface ApplicationMaterialsResponse {
+  resumeSuggestions: Array<{
+    section:
+      | "summary"
+      | "skills"
+      | "experience"
+      | "projects";
+    action:
+      | "add"
+      | "rewrite"
+      | "emphasize"
+      | "remove";
+    suggestion: string;
+    currentEvidence: string[];
+    evidenceRefs: Array<{
+      requirementId: string;
+      requirement: string;
+      status:
+        | "strong"
+        | "partial"
+        | "unsupported";
+      evidence: string[];
+    }>;
+  }>;
+
+  coverLetter: {
+    opening: string;
+    bodyParagraphs: Array<{
+      text: string;
+      claims: Array<{
+        text: string;
+        evidenceRefs: Array<{
+          requirementId: string;
+          requirement: string;
+          status:
+            | "strong"
+            | "partial"
+            | "unsupported";
+          evidence: string[];
+        }>;
+      }>;
+    }>;
+    closing: string;
+  };
 }
 
 export default function Home() {
@@ -91,6 +138,7 @@ export default function Home() {
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -130,6 +178,25 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleCopyCoverLetter() {
+    if (!result) return;
+
+    const coverLetter = result.applicationMaterials.coverLetter;
+
+    const text = [
+      coverLetter.opening,
+      ...coverLetter.bodyParagraphs.map((paragraph) => paragraph.text),
+      coverLetter.closing,
+    ].filter(Boolean).join("\n\n");
+
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+
+    window.setTimeout(() => {
+      setCopied(false);
+    }, 2000);
   }
 
   return (
@@ -378,6 +445,131 @@ export default function Home() {
                 )}
               </div>
             </section>
+
+            {(
+              result.applicationMaterials.resumeSuggestions.length > 0 || result.applicationMaterials.coverLetter.bodyParagraphs.length > 0
+            ) && (
+              <section className="mt-10 space-y-6">
+                <div>
+                  <p className="text-sm font-medium uppercase tracking-[0.18em] text-violet-400">
+                    Application Pack
+                  </p>
+
+                  <h2 className="mt-2 text-2xl font-semibold text-zinc-100">
+                    Grounded application materials
+                  </h2>
+
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
+                    Generated only from candidate claims that passed ApplyPilot&apos;s
+                    verification layer.
+                  </p>
+                </div>
+
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-6">
+                    <div className="mb-5 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
+                          Resume
+                        </p>
+
+                        <h3 className="mt-1 text-lg font-semibold text-zinc-100">
+                          Tailoring suggestions
+                        </h3>
+                      </div>
+
+                      <span className="rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-xs font-medium text-violet-300">
+                        {result.applicationMaterials.resumeSuggestions.length} suggestions
+                      </span>
+                    </div>
+
+                    <div className="space-y-4">
+                      {result.applicationMaterials.resumeSuggestions.map(
+                        (suggestion, index) => (
+                          <div key={`${suggestion.section}-${index}`} className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-md bg-zinc-800 px-2 py-1 text-xs font-medium uppercase text-zinc-300">
+                                {suggestion.section}
+                              </span>
+
+                              <span className="text-xs uppercase tracking-wide text-violet-400">
+                                {suggestion.action}
+                              </span>
+                            </div>
+
+                            <p className="mt-3 text-sm leading-6 text-zinc-200">
+                              {suggestion.suggestion}
+                            </p>
+
+                            {suggestion.currentEvidence.length >
+                              0 && (
+                                <div className="mt-4 border-t border-zinc-800 pt-4">
+                                  <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                                    Evidence used
+                                  </p>
+
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    {suggestion.currentEvidence.map(
+                                      (evidence) => (
+                                        <span
+                                          key={evidence}
+                                          className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1 text-xs text-emerald-300"
+                                        >
+                                          {evidence}
+                                        </span>
+                                      )
+                                    )}
+                                  </div>
+                                </div>
+                            )}
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-6">
+                    <div className="mb-5 flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
+                          Cover Letter
+                        </p>
+
+                        <h3 className="mt-1 text-lg font-semibold text-zinc-100">
+                          Grounded draft
+                        </h3>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleCopyCoverLetter}
+                        className="shrink-0 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs font-medium text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-800 hover:text-white"
+                      >
+                        {copied ? "Copied!" : "Copy"}
+                      </button>
+                    </div>
+
+                    <div className="space-y-4 text-sm leading-7 text-zinc-300">
+                      <p>
+                        {result.applicationMaterials.coverLetter.opening}
+                      </p>
+
+                      {result.applicationMaterials.coverLetter.bodyParagraphs.map(
+                        (paragraph, index) => (
+                          <p key={index}>
+                            {paragraph.text}
+                          </p>
+                        )
+                      )}
+
+                      <p>
+                        {result.applicationMaterials.coverLetter.closing}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
           </div>
         )}
       </div>
