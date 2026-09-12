@@ -1,4 +1,4 @@
-import { gemini, withGeminiRetry } from "@/lib/ai/gemini";
+import { getGemini, withGeminiRetry } from "@/lib/ai/gemini";
 import { candidateProfile } from "@/data/candidate";
 import type { EvidenceMatch, JobRequirement } from "@/types/application";
 
@@ -209,13 +209,12 @@ export async function reasonAboutRequirements(requirements: JobRequirement[]): P
     `;
 
     const response = await withGeminiRetry(() =>
-        gemini.models.generateContent({
+        getGemini().models.generateContent({
             model: "gemini-3.6-flash",
             contents: prompt,
             config: {
                 temperature: 0,
-                responseMimeType:
-                "application/json",
+                responseMimeType: "application/json",
             },
         })
     );
@@ -227,6 +226,10 @@ export async function reasonAboutRequirements(requirements: JobRequirement[]): P
     const parsed = JSON.parse(response.text) as {
         matches: EvidenceMatch[];
     };
+
+    if (!Array.isArray(parsed.matches)) {
+        throw new Error("Gemini evidence reasoning response is missing matches");
+    }
 
     return parsed.matches;
 }

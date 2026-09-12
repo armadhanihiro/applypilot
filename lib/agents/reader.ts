@@ -1,4 +1,4 @@
-import { gemini, withGeminiRetry } from "@/lib/ai/gemini";
+import { getGemini, withGeminiRetry } from "@/lib/ai/gemini";
 import type { JobRequirement } from "@/types/application";
 
 export interface ExtractedJob {
@@ -55,7 +55,7 @@ export async function extractJobFromMarkdown(markdown: string): Promise<Extracte
     `;
 
     const response = await withGeminiRetry(() =>
-        gemini.models.generateContent({
+        getGemini().models.generateContent({
             model: "gemini-3.6-flash",
             contents: prompt,
             config: {

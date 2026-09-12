@@ -10,7 +10,17 @@ function getGeminiApiKey() {
     return apiKey;
 }
 
-export const gemini = new GoogleGenAI({ apiKey: getGeminiApiKey() });
+let geminiClient: GoogleGenAI | null = null;
+
+export function getGemini() {
+    if (!geminiClient) {
+        geminiClient = new GoogleGenAI({
+            apiKey: getGeminiApiKey(),
+        });
+    }
+
+    return geminiClient;
+}
 
 function sleep(ms: number) {
     return new Promise((resolve) =>
@@ -18,14 +28,14 @@ function sleep(ms: number) {
     );
 }
 
-function isRetryableGeminiError(error: unknown) {
-    if (typeof error !== "object" || error === null) {
-        return false;
+function getErrorStatus(error: unknown): number | undefined {
+    if (typeof error !== "object" || error === null || !("status" in error)) {
+        return undefined;
     }
 
-    const status = "status" in error ? Number((error as { status?: unknown }).status) : undefined;
+    const status = Number((error as { status?: unknown }).status);
 
-    return (status === 408 || status === 429 || (status !== undefined && status >= 500));
+    return Number.isFinite(status) ? status : undefined;
 }
 
 export async function withGeminiRetry<T>(operation: () => Promise<T>, maxAttempts = 3): Promise<T> {
@@ -36,17 +46,16 @@ export async function withGeminiRetry<T>(operation: () => Promise<T>, maxAttempt
             return await operation();
         } catch (error) {
             lastError = error;
-            const retryable = isRetryableGeminiError(error);
+
+            const status = getErrorStatus(error);
+            const retryable = status === 408 || status === 503 || (status !== undefined && status >= 500);
 
             if (!retryable || attempt === maxAttempts) {
                 throw error;
             }
 
-            const baseDelay = 1000 * Math.pow(2, attempt - 1);
-            const jitter = Math.floor(Math.random() * 500);
-            const delay = baseDelay + jitter;
+            const delay = 1000 * Math.pow(2, attempt - 1) + Math.floor( Math.random() * 500);
             console.warn(`[ApplyPilot] Gemini transient error. Retry ${attempt}/${maxAttempts} in ${delay}ms`);
-
             await sleep(delay);
         }
     }

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { gemini } from "@/lib/ai/gemini";
+import { getGemini } from "@/lib/ai/gemini";
 
 export async function GET() {
   try {
-    const response = await gemini.models.generateContent({
+    const response = await getGemini().models.generateContent({
       model: "gemini-3.6-flash",
       contents: "Reply with exactly: Gemini works",
     });

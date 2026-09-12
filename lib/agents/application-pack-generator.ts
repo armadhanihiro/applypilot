@@ -1,4 +1,4 @@
-import { gemini, withGeminiRetry } from "@/lib/ai/gemini";
+import { getGemini, withGeminiRetry } from "@/lib/ai/gemini";
 
 import type {
     ApplicationGap,
@@ -21,7 +21,7 @@ interface GeneratedGap {
     doNotClaim: string[];
 }
 
-interface GeneratedApplicationPackCore {
+export interface GeneratedApplicationPackCore {
     fitSummary: {
         headline: string;
         summary: string;
@@ -56,6 +56,57 @@ function calculateCounts(context: ApplicationPackContext) {
         strongCount: context.strongMatches.length,
         partialCount: context.partialMatches.length,
         unsupportedCount: context.unsupportedMatches.length,
+    };
+}
+
+export function hydrateApplicationPackCore(context: ApplicationPackContext, fitScore: number, generated: GeneratedApplicationPackCore): ApplicationPackCore {
+    const counts = calculateCounts(context);
+
+    const fitSummary: FitSummary = {
+        headline: generated.fitSummary.headline,
+        summary: generated.fitSummary.summary,
+        fitScore,
+        ...counts,
+    };
+
+    const sellingPoints: SellingPoint[] = generated.sellingPoints.map((point) => {
+        const evidenceRefs = point.requirementIds.map((requirementId) =>
+            buildEvidenceRef(context, requirementId)).filter((ref): ref is ApplicationPackEvidenceRef =>
+                ref !== null &&
+                ref.status !== "unsupported"
+            );
+
+        if (evidenceRefs.length === 0) {
+            return null;
+        }
+
+        return {
+            title: point.title,
+            description: point.description,
+            evidenceRefs,
+        };
+    }).filter((point): point is SellingPoint => point !== null);
+
+    const gaps: ApplicationGap[] = generated.gaps.map((gap) => {
+        const match = context.verifiedMatches.find((item) => item.requirementId === gap.requirementId);
+
+        if (!match || match.status === "strong") {
+            return null;
+        }
+
+        return {
+            requirementId: match.requirementId,
+            requirement: match.requirement,
+            status: match.status,
+            explanation: gap.explanation,
+            doNotClaim: gap.doNotClaim,
+        };
+    }).filter((gap): gap is ApplicationGap => gap !== null);
+
+    return {
+        fitSummary,
+        sellingPoints,
+        gaps,
     };
 }
 
@@ -145,7 +196,7 @@ export async function generateApplicationPackCore(context: ApplicationPackContex
     `;
 
     const response = await withGeminiRetry(() =>
-        gemini.models.generateContent({
+        getGemini().models.generateContent({
             model: "gemini-3.6-flash",
             contents: prompt,
             config: {
@@ -160,49 +211,6 @@ export async function generateApplicationPackCore(context: ApplicationPackContex
     }
 
     const generated = JSON.parse(response.text) as GeneratedApplicationPackCore;
-    const counts = calculateCounts(context);
-    const fitSummary: FitSummary = {
-        headline: generated.fitSummary.headline,
-        summary: generated.fitSummary.summary,
-        fitScore,
-        ...counts,
-    };
-
-    const sellingPoints: SellingPoint[] = generated.sellingPoints.map((point) => {
-            const evidenceRefs = point.requirementIds.map((requirementId) =>
-                buildEvidenceRef(context, requirementId)
-            ).filter((ref) : ref is ApplicationPackEvidenceRef => ref !== null && ref.status !== "unsupported");
-
-            if (evidenceRefs.length === 0) {
-                return null;
-            }
-
-            return {
-                title: point.title,
-                description: point.description,
-                evidenceRefs,
-            };
-    }).filter((point) : point is SellingPoint => point !== null);
-
-    const gaps: ApplicationGap[] = generated.gaps.map((gap) => {
-        const match = context.verifiedMatches.find((item) => item.requirementId === gap.requirementId);
-
-        if (!match || match.status === "strong") {
-            return null;
-        }
-
-        return {
-            requirementId: match.requirementId,
-            requirement: match.requirement,
-            status: match.status,
-            explanation: gap.explanation,
-            doNotClaim: gap.doNotClaim,
-        };
-    }).filter((gap): gap is ApplicationGap => gap !== null);
-
-    return {
-        fitSummary,
-        sellingPoints,
-        gaps,
-    };
+    
+    return hydrateApplicationPackCore(context, fitScore, generated);
 }
