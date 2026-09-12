@@ -8,6 +8,7 @@ import { scoreMatches } from "@/lib/agents/scoring";
 import { normalizeJobSource, agenticStructuredDataToJob } from "@/lib/agents/source-normalizer";
 import { buildApplicationPackContext } from "@/lib/agents/application-pack";
 import { generateApplicationPackCore } from "@/lib/agents/application-pack-generator";
+import { verifyApplicationPackClaims } from "@/lib/agents/application-pack-claim-verifier";
 
 export async function POST(request: NextRequest) {
     try {
@@ -62,30 +63,50 @@ export async function POST(request: NextRequest) {
         });
 
         // GENERATE APPLICATION STRATEGY
-        const applicationPack = await generateApplicationPackCore(context, scoring.fitScore);
+        const applicationPackCore = await generateApplicationPackCore(context, scoring.fitScore);
+
+        // SEMANTIC CLAIM VERIFICATION
+        const applicationPack = await verifyApplicationPackClaims(applicationPackCore);
+
+        const claimMetrics = applicationPack.sellingPoints.flatMap((point) => point.claims).reduce(
+            (acc, claim) => {
+                acc.total += 1;
+                
+                if (claim.verificationStatus === "verified") {
+                    acc.verified += 1;
+                }
+
+                if (claim.verificationStatus === "rejected") {
+                    acc.rejected += 1;
+                }
+
+                return acc;
+            },
+            {
+                total: 0,
+                verified: 0,
+                rejected: 0,
+            }
+        );
 
         return NextResponse.json({
             success: true,
-            pipelineVersion: "application-pack-v1",
+            pipelineVersion: "application-pack-v2-semantic-verification",
             source: {
                 url,
                 sourceStrategy: source.strategy,
-                anakinJobId:
-                source.anakinJobId,
-                fallbackSources:
-                source.sources ?? [],
+                anakinJobId: source.anakinJobId,
+                fallbackSources: source.sources ?? [],
             },
             job: {
                 title: job.title,
                 company: job.company,
-                requirementCount:
-                job.requirements.length,
+                requirementCount: job.requirements.length,
             },
             analysis: {
-                fitScore:
-                scoring.fitScore,
-                metrics:
-                scoring.metrics,
+                fitScore: scoring.fitScore,
+                metrics: scoring.metrics,
+                claimMetrics,
             },
             applicationPack,
         });

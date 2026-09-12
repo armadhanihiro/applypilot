@@ -95,6 +95,12 @@ describe("hydrateApplicationPackCore", () => {
                     title: "REST API Experience",
                     description: "Candidate has verified REST API experience.",
                     requirementIds: ["req-1"],
+                    claims: [
+                        {
+                            text: "Built and integrated REST APIs.",
+                            requirementIds: ["req-1"],
+                        },
+                    ],
                 },
             ],
         });
@@ -120,7 +126,13 @@ describe("hydrateApplicationPackCore", () => {
                     title: "AI Integration",
                     description: "Candidate has verified AI integration experience.",
                     requirementIds: ["req-3"],
-                },
+                    claims: [
+                        {
+                            text: "Integrated Gemini for AI functionality.",
+                            requirementIds: ["req-3"],
+                        },
+                    ],
+                    },
             ],
         });
 
@@ -138,6 +150,12 @@ describe("hydrateApplicationPackCore", () => {
                     title: "Docker Expertise",
                     description: "Candidate has Docker experience.",
                     requirementIds: ["req-2"],
+                    claims: [
+                        {
+                            text: "Candidate has Docker experience.",
+                            requirementIds: ["req-2"],
+                        },
+                    ],
                 },
             ],
         });
@@ -154,6 +172,12 @@ describe("hydrateApplicationPackCore", () => {
                     title: "Invented Skill",
                     description: "Candidate has an invented skill.",
                     requirementIds: ["req-999"],
+                    claims: [
+                        {
+                            text: "Candidate has an invented skill.",
+                            requirementIds: ["req-999"],
+                        },
+                    ],
                 },
             ],
         });
@@ -173,6 +197,17 @@ describe("hydrateApplicationPackCore", () => {
                         "req-1",
                         "req-2",
                         "req-999",
+                    ],
+                    claims: [
+                        {
+                            text: "Built and integrated REST APIs.",
+                            requirementIds: ["req-1"],
+                        },
+
+                        {
+                            text: "Candidate has Docker experience.",
+                            requirementIds: ["req-2"],
+                        },
                     ],
                 },
             ],

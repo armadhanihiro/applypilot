@@ -7,6 +7,22 @@ export interface ApplicationPackEvidenceRef {
     evidence: string[];
 }
 
+export interface VerifiedApplicationClaim {
+    text: string;
+
+    verificationStatus:
+        | "pending"
+        | "verified"
+        | "rejected";
+
+    evidenceRefs: ApplicationPackEvidenceRef[];
+
+    verification: {
+        reasoning: string;
+        confidence: number;
+    };
+}
+
 export interface FitSummary {
     headline: string;
     summary: string;
@@ -19,6 +35,7 @@ export interface FitSummary {
 export interface SellingPoint {
     title: string;
     description: string;
+    claims: VerifiedApplicationClaim[];
     evidenceRefs: ApplicationPackEvidenceRef[];
 }
 

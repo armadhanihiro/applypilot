@@ -5,6 +5,7 @@ import type {
     ApplicationPackEvidenceRef,
     FitSummary,
     SellingPoint,
+    VerifiedApplicationClaim,
 } from "@/types/application-pack";
 
 import type { ApplicationPackContext } from "@/lib/agents/application-pack";
@@ -12,6 +13,10 @@ import type { ApplicationPackContext } from "@/lib/agents/application-pack";
 interface GeneratedSellingPoint {
     title: string;
     description: string;
+    claims: Array<{
+        text: string;
+        requirementIds: string[];
+    }>;
     requirementIds: string[];
 }
 
@@ -69,20 +74,39 @@ export function hydrateApplicationPackCore(context: ApplicationPackContext, fitS
         ...counts,
     };
 
-    const sellingPoints: SellingPoint[] = generated.sellingPoints.map((point) => {
+    const sellingPoints = generated.sellingPoints.map<SellingPoint | null>((point) => {
         const evidenceRefs = point.requirementIds.map((requirementId) =>
-            buildEvidenceRef(context, requirementId)).filter((ref): ref is ApplicationPackEvidenceRef =>
-                ref !== null &&
-                ref.status !== "unsupported"
-            );
+            buildEvidenceRef(context, requirementId)
+        ).filter((ref): ref is ApplicationPackEvidenceRef => ref !== null && ref.status !== "unsupported");
 
-        if (evidenceRefs.length === 0) {
+        const claims = point.claims.map<VerifiedApplicationClaim | null>((claim) => {
+            const claimEvidenceRefs = claim.requirementIds.map((requirementId) =>
+                    buildEvidenceRef(context, requirementId)
+            ).filter((ref): ref is ApplicationPackEvidenceRef => ref !== null && ref.status !== "unsupported");
+
+            if (claimEvidenceRefs.length === 0) {
+                return null;
+            }
+
+            return {
+                text: claim.text,
+                verificationStatus: "pending",
+                evidenceRefs: claimEvidenceRefs,
+                verification: {
+                    reasoning: "Pending semantic verification.",
+                    confidence: 0,
+                },
+            };
+        }).filter((claim): claim is VerifiedApplicationClaim => claim !== null);
+
+        if (evidenceRefs.length === 0 || claims.length === 0) {
             return null;
         }
 
         return {
             title: point.title,
             description: point.description,
+            claims,
             evidenceRefs,
         };
     }).filter((point): point is SellingPoint => point !== null);
@@ -153,6 +177,16 @@ export async function generateApplicationPackCore(context: ApplicationPackContex
         16. Keep gaps practical and factual.
         17. Every gap must reference exactly one supplied requirementId.
 
+        CLAIM RULES:
+        - Every selling point MUST contain 1-3 atomic claims.
+        - Each claim must express only ONE factual candidate capability.
+        - Every claim must reference one or more requirementIds.
+        - Do not combine supported and unsupported capabilities into one claim.
+        - Do not invent evidence.
+        - Do not claim production usage, deployment, scale, years of experience, leadership, seniority, or ownership unless explicitly supported.
+        - Claims will be independently verified after generation.
+        - Keep claims short and factual.
+
         OUTPUT RULES:
         Return valid JSON only.
         Return exactly this structure:
@@ -164,10 +198,14 @@ export async function generateApplicationPackCore(context: ApplicationPackContex
             },
             "sellingPoints": [
                 {
-                    "title": "selling point title",
-                    "description": "grounded description",
-                    "requirementIds": [
-                        "req-1"
+                    "title": "REST API Development",
+                    "description": "Verified experience relevant to API development.",
+                    "requirementIds": ["req-11"],
+                    "claims": [
+                    {
+                        "text": "Built and integrated REST APIs.",
+                        "requirementIds": ["req-11"]
+                    }
                     ]
                 }
             ],
