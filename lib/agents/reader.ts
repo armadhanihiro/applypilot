@@ -1,4 +1,4 @@
-import { gemini } from "@/lib/ai/gemini";
+import { gemini, withGeminiRetry } from "@/lib/ai/gemini";
 import type { JobRequirement } from "@/types/application";
 
 export interface ExtractedJob {
@@ -54,14 +54,16 @@ export async function extractJobFromMarkdown(markdown: string): Promise<Extracte
         ${markdown}
     `;
 
-    const response = await gemini.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: prompt,
-        config: {
-            temperature: 0.1,
-            responseMimeType: "application/json",
-        },
-    });
+    const response = await withGeminiRetry(() =>
+        gemini.models.generateContent({
+            model: "gemini-3.6-flash",
+            contents: prompt,
+            config: {
+                temperature: 0.1,
+                responseMimeType: "application/json",
+            },
+        })
+    );
 
     if (!response.text) {
         throw new Error("Gemini returned an empty response");
