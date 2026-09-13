@@ -2,6 +2,8 @@
 
 import { FormEvent, useState } from "react";
 
+import type { CandidateProfile } from "@/types/candidate";
+
 type ClaimStatus =
   | "pending"
   | "verified"
@@ -139,6 +141,39 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [cvFile, setCvFile] = useState<File | null>(null);
+  const [candidateProfile, setCandidateProfile] = useState<CandidateProfile | null>(null);
+  const [isParsingCv, setIsParsingCv] = useState(false);
+  const [cvError, setCvError] = useState<string | null>(null);
+
+  async function handleCvUpload(file: File) {
+    setCvFile(file);
+    setCvError(null);
+    setCandidateProfile(null);
+    setIsParsingCv(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/parse-cv", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Failed to parse CV");
+      }
+
+      setCandidateProfile(data.candidateProfile as CandidateProfile);
+    } catch (error) {
+      setCvError(error instanceof Error ? error.message : "Failed to parse CV");
+    } finally {
+      setIsParsingCv(false);
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -162,6 +197,7 @@ export default function Home() {
           },
           body: JSON.stringify({
             url: url.trim(),
+            candidateProfile
           }),
         }
       );
@@ -221,26 +257,97 @@ export default function Home() {
         </header>
 
         <section className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 md:p-6">
-          <form onSubmit={handleSubmit} className="flex flex-col gap-3 md:flex-row">
-            <input
-              type="url"
-              value={url}
-              onChange={(event) =>
-                setUrl(event.target.value)
-              }
-              placeholder="Paste a LinkedIn, SEEK, or company job URL..."
-              className="min-h-12 flex-1 rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-zinc-500"
-            />
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+              <div className="mb-3">
+                <p className="text-sm font-semibold text-white">
+                  1. Upload your CV
+                </p>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="min-h-12 rounded-xl bg-white px-6 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading
-                ? "Analyzing..."
-                : "Analyze job"}
-            </button>
+                <p className="mt-1 text-sm text-zinc-400">
+                  ApplyPilot extracts evidence from your CV before analysing the job.
+                </p>
+              </div>
+
+              <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-dashed border-white/15 bg-black/20 px-4 py-4 transition hover:border-violet-400/50 hover:bg-white/[0.04]">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-zinc-200">
+                    {cvFile ? cvFile.name : "Choose a PDF resume"}
+                  </p>
+
+                  <p className="mt-1 text-xs text-zinc-500">
+                    PDF only · Maximum 8 MB
+                  </p>
+                </div>
+
+                <span className="shrink-0 rounded-lg bg-violet-500 px-3 py-2 text-xs font-semibold text-white">
+                  {cvFile ? "Change CV" : "Choose PDF"}
+                </span>
+
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+
+                    if (file) {
+                      void handleCvUpload(file);
+                    }
+                  }}
+                />
+              </label>
+
+              {isParsingCv && (
+                <div className="mt-3 flex items-center gap-2 text-sm text-violet-300">
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-violet-400" />
+                  Extracting candidate evidence...
+                </div>
+              )}
+
+              {candidateProfile && !isParsingCv && (
+                <div className="mt-3 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] px-4 py-3">
+                  <p className="text-sm font-medium text-emerald-300">
+                    CV ready
+                  </p>
+
+                  <p className="mt-1 text-xs text-zinc-400">
+                    {candidateProfile.name || "Candidate"} ·{" "}
+                    {candidateProfile.experience?.length ?? 0} experiences ·{" "}
+                    {candidateProfile.projects?.length ?? 0} projects ·{" "}
+                    {candidateProfile.skills?.length ?? 0} skills
+                  </p>
+                </div>
+              )}
+
+              {cvError && (
+                <div className="mt-3 rounded-xl border border-red-400/20 bg-red-400/[0.06] px-4 py-3 text-sm text-red-300">
+                  {cvError}
+                </div>
+              )}
+            </div>
+
+            <p className="text-sm font-semibold text-white">
+              2. Paste a job URL
+            </p>
+
+            <div className="flex flex-col gap-3 md:flex-row">
+              <input
+                type="url"
+                value={url}
+                onChange={(event) => setUrl(event.target.value)}
+                placeholder="Paste a LinkedIn, SEEK, or company job URL..."
+                className="min-h-12 flex-1 rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-zinc-500"
+              />
+
+              <button
+                type="submit"
+                disabled={loading || isParsingCv}
+                className="min-h-12 rounded-xl bg-white px-6 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loading ? "Analyzing..." : "Analyze job"}
+              </button>
+            </div>
           </form>
 
           {loading && (

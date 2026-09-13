@@ -3,20 +3,25 @@ import { describe, expect, it } from "vitest";
 import { verifyEvidenceMatches } from "@/lib/agents/verifier";
 import { scoreMatches } from "@/lib/agents/scoring";
 
+import { candidateProfile } from "@/data/candidate";
+
 describe("ApplyPilot evidence verifier", () => {
     it("keeps verified candidate evidence", () => {
-        const result = verifyEvidenceMatches([
-            {
-                requirementId: "req-1",
-                requirement: "Experience with REST APIs",
-                status: "strong",
-                evidence: [
-                    "Built and integrated REST APIs",
-                ],
-                reasoning: "Candidate has direct REST API evidence.",
-                confidence: 0.95,
-            },
-        ]);
+        const result = verifyEvidenceMatches(
+            [
+                {
+                    requirementId: "req-1",
+                    requirement: "Experience with REST APIs",
+                    status: "strong",
+                    evidence: [
+                        "Built and integrated REST APIs",
+                    ],
+                    reasoning: "Candidate has direct REST API evidence.",
+                    confidence: 0.95,
+                },
+            ],
+            candidateProfile
+        );
 
         expect(result[0].status).toBe("strong");
         expect(result[0].evidence).toEqual(["Built and integrated REST APIs"]);
@@ -25,18 +30,21 @@ describe("ApplyPilot evidence verifier", () => {
     });
 
     it("removes hallucinated evidence", () => {
-        const result = verifyEvidenceMatches([
-            {
-                requirementId: "req-2",
-                requirement: "5+ years Kubernetes production experience",
-                status: "strong",
-                evidence: [
-                    "5 years of Kubernetes production experience",
-                ],
-                reasoning: "Candidate has extensive Kubernetes experience.",
-                confidence: 0.99,
-            },
-        ]);
+        const result = verifyEvidenceMatches(
+            [
+                {
+                    requirementId: "req-2",
+                    requirement: "5+ years Kubernetes production experience",
+                    status: "strong",
+                    evidence: [
+                        "5 years of Kubernetes production experience",
+                    ],
+                    reasoning: "Candidate has extensive Kubernetes experience.",
+                    confidence: 0.99,
+                },
+            ],
+            candidateProfile
+        );
 
         expect(result[0].status).toBe("unsupported");
         expect(result[0].evidence).toEqual([]);
@@ -44,18 +52,21 @@ describe("ApplyPilot evidence verifier", () => {
     });
 
     it("allows partial support only when evidence exists", () => {
-        const result = verifyEvidenceMatches([
-            {
-                requirementId: "req-3",
-                requirement: "Experience using LLMs in production applications",
-                status: "partial",
-                evidence: [
-                    "Integrated Gemini for AI functionality",
-                ],
-                reasoning: "Candidate has relevant LLM integration experience.",
-                confidence: 0.78,
-            },
-        ]);
+        const result = verifyEvidenceMatches(
+            [
+                {
+                    requirementId: "req-3",
+                    requirement: "Experience using LLMs in production applications",
+                    status: "partial",
+                    evidence: [
+                        "Integrated Gemini for AI functionality",
+                    ],
+                    reasoning: "Candidate has relevant LLM integration experience.",
+                    confidence: 0.78,
+                },
+            ],
+            candidateProfile
+        );
 
         expect(result[0].status).toBe("partial");
         expect(result[0].evidence.length).toBe(1);
@@ -65,38 +76,41 @@ describe("ApplyPilot evidence verifier", () => {
 
 describe("ApplyPilot scoring", () => {
     it("calculates deterministic fit score", () => {
-        const verifiedMatches = verifyEvidenceMatches([
-            {
-                requirementId: "req-1",
-                requirement: "REST API experience",
-                status: "strong",
-                evidence: [
-                    "Built and integrated REST APIs",
-                ],
-                reasoning: "Direct support.",
-                confidence: 0.95,
-            },
+        const verifiedMatches = verifyEvidenceMatches(
+            [
+                {
+                    requirementId: "req-1",
+                    requirement: "REST API experience",
+                    status: "strong",
+                    evidence: [
+                        "Built and integrated REST APIs",
+                    ],
+                    reasoning: "Direct support.",
+                    confidence: 0.95,
+                },
 
-            {
-                requirementId: "req-2",
-                requirement: "LLM experience",
-                status: "partial",
-                evidence: [
-                    "Integrated Gemini for AI functionality",
-                ],
-                reasoning: "Related support.",
-                confidence: 0.8,
-            },
+                {
+                    requirementId: "req-2",
+                    requirement: "LLM experience",
+                    status: "partial",
+                    evidence: [
+                        "Integrated Gemini for AI functionality",
+                    ],
+                    reasoning: "Related support.",
+                    confidence: 0.8,
+                },
 
-            {
-                requirementId: "req-3",
-                requirement: "Kubernetes",
-                status: "unsupported",
-                evidence: [],
-                reasoning: "No evidence.",
-                confidence: 0.95,
-            },
-        ]);
+                {
+                    requirementId: "req-3",
+                    requirement: "Kubernetes",
+                    status: "unsupported",
+                    evidence: [],
+                    reasoning: "No evidence.",
+                    confidence: 0.95,
+                },
+            ],
+            candidateProfile
+        );
 
         const scoring = scoreMatches(verifiedMatches);
 
@@ -110,18 +124,21 @@ describe("ApplyPilot scoring", () => {
     });
 
     it("counts hallucinated evidence removed by verifier", () => {
-        const verifiedMatches = verifyEvidenceMatches([
-            {
-                requirementId: "req-1",
-                requirement: "Kubernetes",
-                status: "strong",
-                evidence: [
-                    "Managed Kubernetes clusters in production",
-                ],
-                reasoning: "Claimed direct experience.",
-                confidence: 0.99,
-            },
-        ]);
+        const verifiedMatches = verifyEvidenceMatches(
+            [
+                {
+                    requirementId: "req-1",
+                    requirement: "Kubernetes",
+                    status: "strong",
+                    evidence: [
+                        "Managed Kubernetes clusters in production",
+                    ],
+                    reasoning: "Claimed direct experience.",
+                    confidence: 0.99,
+                },
+            ],
+            candidateProfile
+        );
 
         const scoring = scoreMatches(verifiedMatches);
 

@@ -7,6 +7,8 @@ import { verifyEvidenceMatches } from "@/lib/agents/verifier";
 import { scoreMatches } from "@/lib/agents/scoring";
 import { agenticStructuredDataToJob, normalizeJobSource } from "@/lib/agents/source-normalizer";
 
+import { candidateProfile as fallbackCandidateProfile } from "@/data/candidate";
+
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
@@ -55,10 +57,10 @@ export async function POST(request: NextRequest) {
         }
 
         // 5. REASON AGAINST CANDIDATE EVIDENCE
-        const reasonedMatches = await reasonAboutRequirements(job.requirements);
+        const reasonedMatches = await reasonAboutRequirements(job.requirements, fallbackCandidateProfile);
 
         // 6. HARD VERIFY
-        const matches = verifyEvidenceMatches(reasonedMatches);
+        const matches = verifyEvidenceMatches(reasonedMatches, fallbackCandidateProfile);
 
         // 7. SCORE
         const scoring = scoreMatches(matches);

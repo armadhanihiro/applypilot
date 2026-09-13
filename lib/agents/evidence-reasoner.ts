@@ -1,8 +1,9 @@
 import { getGemini, withGeminiRetry } from "@/lib/ai/gemini";
-import { candidateProfile } from "@/data/candidate";
+import type { CandidateProfile } from "@/types/candidate";
+
 import type { EvidenceMatch, JobRequirement } from "@/types/application";
 
-function buildEvidencePool() {
+function buildEvidencePool(candidateProfile: CandidateProfile) {
     return {
         skills: candidateProfile.skills,
         experience: candidateProfile.experience,
@@ -11,8 +12,8 @@ function buildEvidencePool() {
     };
 }
 
-export async function reasonAboutRequirements(requirements: JobRequirement[]): Promise<EvidenceMatch[]> {
-    const evidencePool = buildEvidencePool();
+export async function reasonAboutRequirements(requirements: JobRequirement[], candidateProfile: CandidateProfile): Promise<EvidenceMatch[]> {
+    const evidencePool = buildEvidencePool(candidateProfile);
 
     const prompt = `
         You are ApplyPilot's Evidence Reasoner.

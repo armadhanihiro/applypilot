@@ -10,11 +10,16 @@ import { buildApplicationPackContext } from "@/lib/agents/application-pack";
 import { generateApplicationPackCore } from "@/lib/agents/application-pack-generator";
 import { verifyApplicationPackClaims } from "@/lib/agents/application-pack-claim-verifier";
 import { generateApplicationMaterials } from "@/lib/agents/application-materials-generator";
+import type { CandidateProfile } from "@/types/candidate";
+
+import { candidateProfile as fallbackCandidateProfile } from "@/data/candidate";
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
         const url = body.url;
+        const uploadedCandidateProfile = body.candidateProfile as CandidateProfile | undefined;
+        const candidateProfile = uploadedCandidateProfile ?? fallbackCandidateProfile;
 
         if (!url || typeof url !== "string") {
             return NextResponse.json(
@@ -47,11 +52,11 @@ export async function POST(request: NextRequest) {
         }
 
         // EVIDENCE REASONING
-        const reasonedMatches = await reasonAboutRequirements(job.requirements);
+        const reasonedMatches = await reasonAboutRequirements(job.requirements, candidateProfile);
 
         // HARD VERIFICATION
-        const matches = verifyEvidenceMatches(reasonedMatches);
-
+        const matches = verifyEvidenceMatches(reasonedMatches, candidateProfile);
+        
         // SCORE
         const scoring = scoreMatches(matches);
 

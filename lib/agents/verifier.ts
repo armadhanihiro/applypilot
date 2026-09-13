@@ -1,7 +1,8 @@
-import { candidateProfile } from "@/data/candidate";
+import type { CandidateProfile } from "@/types/candidate";
+
 import type { EvidenceMatch } from "@/types/application";
 
-function getAllowedEvidence(): Set<string> {
+function getAllowedEvidence(candidateProfile: CandidateProfile): Set<string> {
     const evidence = [
         ...candidateProfile.skills,
         ...candidateProfile.experience.flatMap((item) => item.evidence),
@@ -11,13 +12,13 @@ function getAllowedEvidence(): Set<string> {
             item.institution,
             item.achievement,
         ]),
-    ];
+    ].filter((item): item is string => Boolean(item));
 
     return new Set(evidence);
 }
 
-export function verifyEvidenceMatches(matches: EvidenceMatch[]) {
-    const allowedEvidence = getAllowedEvidence();
+export function verifyEvidenceMatches(matches: EvidenceMatch[], candidateProfile: CandidateProfile) {
+    const allowedEvidence = getAllowedEvidence(candidateProfile);
 
     return matches.map((match) => {
         const verifiedEvidence = match.evidence.filter((evidence) => allowedEvidence.has(evidence));
