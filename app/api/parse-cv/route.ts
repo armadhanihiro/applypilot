@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import "pdf-parse/worker";
 import { PDFParse } from "pdf-parse";
 
 import { extractCandidateProfile } from "@/lib/agents/cv-reader";
